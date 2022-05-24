@@ -3,3 +3,11 @@ build:
   mode: bootable-jar
 deploy:
   replicas: 1
+  volumeMounts:
+    - name: rhoas
+      mountPath: /etc/config/rhoas
+      readOnly: true
+  volumes:
+    - name: rhoas
+      secret:
+        secretName: rhoas
