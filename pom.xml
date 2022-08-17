@@ -27,11 +27,12 @@
 
     <properties>
         <!-- BOM versions -->
-        <version.wildfly>26.1.0.Final</version.wildfly>
+        <version.wildfly>27.0.0.Alpha4</version.wildfly>
+        <version.server.bootable-jar>${version.wildfly}</version.server.bootable-jar>
         <version.microprofile.bom>${version.wildfly}</version.microprofile.bom>
         <version.server.bom>${version.wildfly}</version.server.bom>
         <!-- Plugin versions -->
-        <version.server.bootable-jar>26.0.1.Final</version.server.bootable-jar>
+        <version.wildfly.maven.plugin>3.0.2.Final</version.wildfly.maven.plugin>
         <version.wildfly-jar.maven.plugin>7.0.0.Final</version.wildfly-jar.maven.plugin>
         <version.war.plugin>3.2.3</version.war.plugin>
         <jkube.generator.from>registry.redhat.io/ubi8/openjdk-11:latest</jkube.generator.from>
@@ -107,7 +108,7 @@
             <!-- importing the jakartaee8-with-tools BOM adds specs and other useful artifacts as managed dependencies -->
             <dependency>
                 <groupId>org.wildfly.bom</groupId>
-                <artifactId>wildfly-jakartaee8-with-tools</artifactId>
+                <artifactId>wildfly-ee-with-tools</artifactId>
                 <version>${version.server.bom}</version>
                 <type>pom</type>
                 <scope>import</scope>
@@ -138,6 +139,17 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.wildfly.plugins</groupId>
+                    <artifactId>wildfly-maven-plugin</artifactId>
+                    <version>${version.wildfly.maven.plugin}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 <!--
     <build>
         <plugins>
