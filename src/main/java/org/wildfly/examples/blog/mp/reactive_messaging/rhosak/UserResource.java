@@ -38,7 +38,8 @@ public class UserResource {
     @POST
     @Path("{value}")
     @Consumes(MediaType.TEXT_PLAIN)
-    public Response send(@PathParam("value") String value) {
+    public Response send(@PathParam("value")
+                                     String value) {
         bean.send(value);
         return Response.ok().build();
     }

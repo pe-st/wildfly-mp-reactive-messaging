@@ -34,7 +34,8 @@ public class MessagingBean {
     @Channel("to-kafka")
     private Emitter<String> emitter;
 
-    private LinkedList<String> recentlyReceived = new LinkedList<>();
+    private LinkedList<String> recentlyReceived =
+            new LinkedList<>();
 
     public MessagingBean() {
         //Needed for CDI spec compliance

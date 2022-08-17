@@ -11,6 +11,7 @@
     * Use it to add the `wildfly` Helm repostory as outlined in https://docs.wildfly.org/wildfly-charts/
   * `oc` - This is the OpenShift command line interface. It can be downloaded from the OpensShift console of the instance you provisioned a few steps back, as outlined [here](https://developers.redhat.com/openshift/command-line-tools).
     * Log into your OpenShift instance by copying the login command from the OpenShift console. This is available from the menu under your user name in the top right.
+      * Once logged select the project you wish to use by running `oc project <project name>`. To find the name of the project to use, run the following command and choose the one ending with '-dev': `oc get projects`
   
 ## Starting a Kafka instance in RHOSAK
 While Kafka instances, Service Accounts, topics and ACLS can be set up in the RHOSAK console accessible from https://developers.redhat.com/products/red-hat-openshift-streams-for-apache-kafka/getting-started,
@@ -54,7 +55,7 @@ RHOAS_OAUTH_TOKEN_URL=https://identity.api.openshift.com/auth/realms/rhoas/proto
 The final step on the `rhoas` side is to set up permission so our associated Service Account has permissions to read from 
 and write to topics on the Kafka instance. Substitute `<RHOAS_CLIENT_ID>` with the value from your local copy of the `rhoas.env` file:
 ```shell
-$ rhoas kafka acl grant-access --producer --consumer --service-account srvc-acct-XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX --topic all --group all
+$ rhoas kafka acl grant-access --producer --consumer --topic all --group all --service-account srvc-acct-XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX 
 
 -- SNIP --
 
@@ -67,7 +68,7 @@ $ rhoas kafka acl grant-access --producer --consumer --service-account srvc-acct
 ## Adding the rhoas.env as a secret to OpenShift
 We add the secret to our OpenShift instance by running the following command.
 ```shell
-kubectl create secret generic rhoas --from-env-file=./rhoas.env                                                                            
+oc create secret generic rhoas --from-env-file=./rhoas.env                                                                            
 ```
 The name of the secret is inferred from the name of the file, so it becomes `rhoas`. 
 
