@@ -6,14 +6,26 @@
 * An account on https://developers.redhat.com
   * Go to https://developers.redhat.com/developer-sandbox/get-started and provision an OpenShift instance 
 * Download the following and make available in your PATH
-  * [rhoas](https://github.com/redhat-developer/app-services-cli/releases) - this is the command line tool to interact with RHOSAK
+  * [rhoas](https://github.com/redhat-developer/app-services-cli/releases) - this is the command line tool to interact with RHOSAK. Note that the official-looking location for downloading the CLI (i.e. link:https://developers.redhat.com/products/red-hat-openshift-streams-for-apache-kafka/download[this]) is currently too old to run this example, so make sure to use the first link.
   * [helm](https://helm.sh/docs/intro/install/)
     * Use it to add the `wildfly` Helm repostory as outlined in https://docs.wildfly.org/wildfly-charts/
   * `oc` - This is the OpenShift command line interface. It can be downloaded from the OpensShift console of the instance you provisioned a few steps back, as outlined [here](https://developers.redhat.com/openshift/command-line-tools).
-    * Log into your OpenShift instance by copying the login command from the OpenShift console. This is available from the menu under your user name in the top right.
-      * Once logged select the project you wish to use by running `oc project <project name>`. To find the name of the project to use, run the following command and choose the one ending with '-dev': `oc get projects`
+    * Log into your OpenShift instance by copying the login command from the OpenShift console. This is available from the menu under your user name in the top right.  
+      * Once logged select the project you wish to use by running `oc project <project name>`. To find the name of the project to use, run the following command and choose the one ending with '-dev': `oc get projects`. If you started your OpenShift sandbox for the first time, it might take a few minutes until it is available
+    
   
 ## Starting a Kafka instance in RHOSAK
+
+These instructions were done with version 0.49.0 of the `rhoas` CLI. Since it is under development, the instructions might change subtly. The main steps are:
+
+* login to RHOSAK
+* Create a Kafka instance, and set it as the active instance
+* Create a Kafka topic
+* Create a service account used to authenticate against the Kafka instance, and grant it access to produce/consume messages on the Kafka instance
+* Create an OpenShift secret called `rhoas` containing
+   * the address of the Kafka instance
+   * the service account details
+
 While Kafka instances, Service Accounts, topics and ACLS can be set up in the RHOSAK console accessible from https://developers.redhat.com/products/red-hat-openshift-streams-for-apache-kafka/getting-started,
 we will do it via the `rhoas` CLI.
 
@@ -22,55 +34,57 @@ First make sure you are logged in:
 $ rhoas login
 ```
 
-We then create a Kafka instance with default values. Names of Kafka instances must be unique on the RHOSAK server, s
-o call it `<your-name>-kafka`. In my case that is `kabir-kafka` and what will be used for the rest of these instructions:
+We then create a Kafka instance with default values. Names of Kafka instances must be unique on the RHOSAK server, so call it `<your-name>-kafka`. In my case that is `kabir-kafka` and what will be used for the rest of these instructions:
 ```shell
 rhoas kafka create --name kabir-kafka
 ```
 This will take a few minutes. Once the `Status` of `rhoas context status kafka` is `ready` we can proceed to the next step.
 
-Next we tell `rhoas` to use our Kafka instance. All future commands with `rhoas` will be for the instance. Additionally,
-we create a topic called `testing`.
+Next we tell `rhoas` to use our Kafka instance. All future commands with `rhoas` will be for the instance. Additionally, we create a topic called `testing`.
 
 ```shell
 $ rhoas context set-kafka --name kabir-kafka
 $ rhoas kafka topic create --name testing
 ```
 
-Next we save the configuration to connect to Kafka. This also creates a Service Account behind the scenes. The information is
-contained in the rhoas.env file:
+Next we save the configuration to connect to Kafka. The information is contained in the generated `rhoas.env` file:
 ```shell
 $ rhoas generate-config --type env 
+```
+As prompted, we need to create a service account to authenticate with the Kafka instance. Additionally, we make sure to store its information in `svcacc.env`, and then put the contents of `svcacc.env` into `rhoas.env`. Again, substitute the name used in `--short-description` with something unique:
+```shell
+$ rhoas service-account create --file-format env --output-file svcacc.env --short-description kabir-account
+$ cat svcacc.env >> rhoas.env
+```
+
+From the output of the previous `rhoas service-account create` command, we set up permissions to allow our service account to produce/consume Kafka messages (substitute 'a-b-c-d-e' with what is in the actual output):
+```shell
+rhoas kafka acl grant-access --producer --consumer --service-account a-b-c-d-e
+ --topic all --group all
+ 
+ -- SNIP --
+? Are you sure you want to create the listed ACL rules? Yes
+✔️  ACLs successfully created in the Kafka instance "kabir-kafka" 
+```
+Next we can inspect the generated `rhoas.env` files and to see the location of the Kafka host and the credentials.
+```shell
 $ cat rhoas.env
 ## Generated by rhoas cli
 ## Kafka Configuration
 KAFKA_HOST=kabir-kafk-ca-gkal-d-cv--s-j-ka.bf2.kafka.rhcloud.com:443
 
 ## Authentication Configuration
-RHOAS_CLIENT_ID=srvc-acct-XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX
-RHOAS_CLIENT_SECRET=XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX
-RHOAS_OAUTH_TOKEN_URL=https://identity.api.openshift.com/auth/realms/rhoas/protocol/openid-connect/token
+RHOAS_SERVICE_ACCOUNT_CLIENT_ID=srvc-acct-XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX
+RHOAS_SERVICE_ACCOUNT_CLIENT_SECRET=XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX
+RHOAS_SERVICE_ACCOUNT_OAUTH_TOKEN_URL=https://identity.api.openshift.com/auth/realms/rhoas/protocol/openid-connect/token
 ```
 
-The final step on the `rhoas` side is to set up permission so our associated Service Account has permissions to read from 
-and write to topics on the Kafka instance. Substitute `<RHOAS_CLIENT_ID>` with the value from your local copy of the `rhoas.env` file:
-```shell
-$ rhoas kafka acl grant-access --producer --consumer --topic all --group all --service-account srvc-acct-XXXXXX-XXXXX-XXXXXX-XXXX-XXXXXXXX 
-
--- SNIP --
-
-? Are you sure you want to create the listed ACL rules? Yes
-
-✔️  ACLs successfully created in the Kafka instance "kabir-kafka"
-
-```
-
-## Adding the rhoas.env as a secret to OpenShift
+### Adding the rhoas.env as a secret to OpenShift
 We add the secret to our OpenShift instance by running the following command.
 ```shell
 oc create secret generic rhoas --from-env-file=./rhoas.env                                                                            
 ```
-The name of the secret is inferred from the name of the file, so it becomes `rhoas`. 
+The name of the secret is inferred from the name of the file, so it becomes `rhoas`. The secret will contain the values `KAFKA_HOST`, `RHOAS_SERVICE_ACCOUNT_CLIENT_ID`, `RHOAS_SERVICE_ACCOUNT_CLIENT_SECRET` and `RHOAS_SERVICE_ACCOUNT_OAUTH_TOKEN_URL`.
 
 ## Building and deploying the application
 The application is a very simple REST endpoint which allows you to post messages with [MicroProfile Reactive Messaging](https://github.com/eclipse/microprofile-reactive-messaging). These messages are then sent to Kafka via the contained `Emitter`. Messages from Kafka come in to the `@Incoming` annotated method. We store the most recently received messages, and expose those via another REST endpoint.
@@ -79,14 +93,12 @@ From the root directory of the application, install the Helm chart containing th
 ```shell
 $ helm install rhosak-example -f ./helm.yml wildfly/wildfly 
 ```
-This will return quickly but that does not mean the application is up and running yet. Check the application in the OpenShift console or using `oc get deployment mp-rm-qs -w`.
+This will return quickly but that does not mean the application is up and running yet. Check the application in the OpenShift console or using `oc get deployment rhosak-example -w`.
 
 The Helm Chart at [./helm.yml](.helm.yml) mounts the 'rhoas' secret as a volume under `/etc/config/rhoas`.
 
-
 The [initialize-server.cli](src/main/scripts/initialize-server.cli) script triggered by the `openshift` profile 
-in the POM adds the `/etc/config/rhoas` directory containing the data from the `rhoas` secret, and uses those values
-to add more values in the MicroProfile Config subsystem. These values configure the 
+in the POM adds the `/etc/config/rhoas` directory containing the data from the `rhoas` secret, and uses those values to add more values in the MicroProfile Config subsystem. These values configure the 
 [SmallRye](https://smallrye.io/smallrye-reactive-messaging/3.16.0/kafka/kafka/) implementation 
 of MicroProfile Reactive Messaging that ships with WildFly. Additional properties to configure the application come from
 the contained [microprofile-config.properties](src/main/resources/META-INF/microprofile-config.properties).
@@ -98,15 +110,15 @@ $ oc get route
 NAME             HOST/PORT                                                          PATH   SERVICES         PORT    TERMINATION     WILDCARD
 rhosak-example   rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com          rhosak-example   <all>   edge/Redirect   None
 ```
-In my case the URL is `rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com`. You should of course substitute 
-that with the URL of your application in the following steps.
+In my case the URL is `rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com`. You should of course substitute that with the URL of your application in the following steps.
 
 First let's add some entries using Curl:
 ```shell
 $ curl  -X POST https://rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com/one
 $ curl  -X POST https://rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com/two 
 ```
-These will be sent to Kafka, and received again by the application which will keep a list of the most recently received values.
+These will be sent to Kafka, and received again by the application which will keep a list of the most recently received values. Note that the `https://` is needed - if left out, the commands will appear to work, but no data will actually be posted.
+ 
 To read this list of recently received values, we can run Curl again:
 ```shell
 $ curl  https://rhosak-example-kkhan1-dev.apps.sandbox.x8i5.p1.openshiftapps.com  
