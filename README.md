@@ -14,7 +14,7 @@
       * Once logged select the project you wish to use by running `oc project <project name>`. To find the name of the project to use, run the following command and choose the one ending with '-dev': `oc get projects`. If you started your OpenShift sandbox for the first time, it might take a few minutes until it is available
     
   
-## Starting a Kafka instance in RHOSAK
+## Configuring a Kafka instance in RHOSAK
 
 These instructions were done with version 0.49.0 of the `rhoas` CLI. Since it is under development, the instructions might change subtly. The main steps are:
 
@@ -29,6 +29,7 @@ These instructions were done with version 0.49.0 of the `rhoas` CLI. Since it is
 While Kafka instances, Service Accounts, topics and ACLS can be set up in the RHOSAK console accessible from https://developers.redhat.com/products/red-hat-openshift-streams-for-apache-kafka/getting-started,
 we will do it via the `rhoas` CLI.
 
+### Creating the Kafka instance and topic
 First make sure you are logged in:
 ```shell
 $ rhoas login
@@ -47,6 +48,7 @@ $ rhoas context set-kafka --name kabir-kafka
 $ rhoas kafka topic create --name testing
 ```
 
+### Create service account and obtain connection information
 Next we save the configuration to connect to Kafka. The information is contained in the generated `rhoas.env` file:
 ```shell
 $ rhoas generate-config --type env 
