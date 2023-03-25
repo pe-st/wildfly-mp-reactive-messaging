@@ -18,98 +18,40 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.wildfly.blog.examples</groupId>
-    <artifactId>wildfly-microprofile-reactive-messaging-rhosak</artifactId>
+
+    <groupId>ch.schlau.pesche</groupId>
+    <artifactId>wildfly-mp-reactive-messaging</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>war</packaging>
 
-    <name>Quickstart: microprofile-reactive-messaging-kafka</name>
-
     <properties>
-        <!-- BOM versions -->
-        <version.wildfly>27.0.0.Alpha4</version.wildfly>
-        <version.server.bootable-jar>${version.wildfly}</version.server.bootable-jar>
-        <version.microprofile.bom>${version.wildfly}</version.microprofile.bom>
-        <version.server.bom>${version.wildfly}</version.server.bom>
-        <!-- Plugin versions -->
-        <version.wildfly.maven.plugin>3.0.2.Final</version.wildfly.maven.plugin>
-        <version.wildfly-jar.maven.plugin>7.0.0.Final</version.wildfly-jar.maven.plugin>
-        <version.war.plugin>3.2.3</version.war.plugin>
-        <jkube.generator.from>registry.redhat.io/ubi8/openjdk-11:latest</jkube.generator.from>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-    </properties>
+        <java.release>17</java.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <repositories>
-        <repository>
-            <id>jboss-public-maven-repository</id>
-            <name>JBoss Public Maven Repository</name>
-            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </snapshots>
-            <layout>default</layout>
-        </repository>
-        <repository>
-            <id>redhat-ga-maven-repository</id>
-            <name>Red Hat GA Maven Repository</name>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </snapshots>
-            <layout>default</layout>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>jboss-public-maven-repository</id>
-            <name>JBoss Public Maven Repository</name>
-            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-        <pluginRepository>
-            <id>redhat-ga-maven-repository</id>
-            <name>Red Hat GA Maven Repository</name>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+        <!-- versions provided by wildfly -->
+        <wildfly.bom.version>27.0.1.Final</wildfly.bom.version>
+
+        <!-- maven plugin versions (in alphabetical order) -->
+        <docker.plugin.version>0.40.2</docker.plugin.version>
+        <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
+        <maven.war.plugin.version>3.3.2</maven.war.plugin.version>
+    </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- importing the microprofile BOM adds MicroProfile specs -->
+            <dependency>
+                <groupId>org.wildfly.bom</groupId>
+                <artifactId>wildfly-ee</artifactId>
+                <version>${wildfly.bom.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
             <dependency>
                 <groupId>org.wildfly.bom</groupId>
                 <artifactId>wildfly-microprofile</artifactId>
-                <version>${version.microprofile.bom}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <!-- importing the jakartaee8-with-tools BOM adds specs and other useful artifacts as managed dependencies -->
-            <dependency>
-                <groupId>org.wildfly.bom</groupId>
-                <artifactId>wildfly-ee-with-tools</artifactId>
-                <version>${version.server.bom}</version>
+                <version>${wildfly.bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -117,122 +59,75 @@
     </dependencyManagement>
 
     <dependencies>
-
-        <!-- Import the CDI API, we use provided scope as the API is included in WildFly -->
+        <!-- actually needed EE dependencies, from the Wildfly BOM POM -->
         <dependency>
             <groupId>jakarta.enterprise</groupId>
             <artifactId>jakarta.enterprise.cdi-api</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Import the Reactive Messaging API, we use provided scope as the API is included in WildFly -->
-        <dependency>
-            <groupId>org.eclipse.microprofile.reactive.messaging</groupId>
-            <artifactId>microprofile-reactive-messaging-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <!-- Import the resteasy-jaxrs API, we use provided scope as the API is included in WildFly -->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-core-spi</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.microprofile.config</groupId>
+            <artifactId>microprofile-config-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.microprofile.reactive.messaging</groupId>
+            <artifactId>microprofile-reactive-messaging-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.wildfly.plugins</groupId>
-                    <artifactId>wildfly-maven-plugin</artifactId>
-                    <version>${version.wildfly.maven.plugin}</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-    </build>
-<!--
-    <build>
+        <!-- avoids adding -1.0-SNAPSHOT to the WAR name, easier for the docker plugin -->
+        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
-                <groupId>org.wildfly.plugins</groupId>
-                <artifactId>wildfly-jar-maven-plugin</artifactId>
-                <version>${version.wildfly-jar.maven.plugin}</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
                 <configuration>
-                    <feature-pack-location>wildfly@maven(org.jboss.universe:community-universe)#${version.server.bootable-jar}</feature-pack-location>
-                    <layers>
-                        <layer>cloud-server</layer>
-                        <layer>microprofile-reactive-messaging-kafka</layer>
-                    </layers>
-                    <plugin-options>
-                        <jboss-fork-embedded>true</jboss-fork-embedded>
-                    </plugin-options>
+                    <!-- starting with Java 9 javac should be called with -release N -->
+                    <release>${java.release}</release>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>package</goal>
-                        </goals>
-                    </execution>
-                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>${maven.war.plugin.version}</version>
+                <configuration>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>${docker.plugin.version}</version>
+                <configuration>
+                    <images>
+                        <image>
+                            <name>wildfly-mp-reactive-messaging</name>
+                            <alias>dockerfile</alias>
+                            <build>
+                                <contextDir>${project.basedir}/src/main/docker</contextDir>
+                                <assembly>
+                                    <inline>
+                                        <files>
+                                            <file>
+                                                <source>target/${project.build.finalName}.war</source>
+                                            </file>
+                                        </files>
+                                    </inline>
+                                </assembly>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
             </plugin>
         </plugins>
     </build>
--->
-
-    <profiles>
-        <profile>
-            <id>openshift</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.wildfly.plugins</groupId>
-                        <artifactId>wildfly-jar-maven-plugin</artifactId>
-                        <version>${version.wildfly-jar.maven.plugin}</version>
-                        <configuration>
-                            <feature-pack-location>wildfly@maven(org.jboss.universe:community-universe)#${version.server.bootable-jar}</feature-pack-location>
-                            <layers>
-                                <layer>cloud-server</layer>
-                                <layer>microprofile-reactive-messaging-kafka</layer>
-                            </layers>
-                            <plugin-options>
-                                <jboss-fork-embedded>true</jboss-fork-embedded>
-                            </plugin-options>
-                            <cli-sessions>
-                                <cli-session>
-                                    <!-- do not resolve expression as they reference env vars that -->
-                                    <!-- can be set at runtime -->
-                                    <resolve-expressions>false</resolve-expressions>
-                                    <script-files>
-                                        <script>src/main/scripts/initialize-server.cli</script>
-                                    </script-files>
-                                </cli-session>
-                            </cli-sessions>
-                            <cloud/>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>package</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-<!--
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <configuration>
-                            &lt;!&ndash;
-                                We should not build sources for bootable jar on OpenShift as having two jars confuses the image launch.
-                                Alternatively you can set the JAVA_APP_JAR=<jar name> environment variable
-                            &ndash;&gt;
-                            <skipSource>true</skipSource>
-                        </configuration>
-                    </plugin>
--->
-
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
